@@ -30,10 +30,13 @@ defmodule Peep.Persistent do
     storage =
       case storage_impl do
         :default ->
-          {Peep.Storage.ETS, Peep.Storage.ETS.new()}
+          {Peep.Storage.ETS, Peep.Storage.ETS.new(:erlang.system_info(:schedulers_online))}
+
+        {:default, partitions} ->
+          {Peep.Storage.ETS, Peep.Storage.ETS.new(partitions)}
 
         :striped ->
-          {Peep.Storage.Striped, Peep.Storage.Striped.new()}
+          {Peep.Storage.Striped, Peep.Storage.Striped.new([])}
       end
 
     %{

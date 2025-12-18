@@ -12,9 +12,9 @@ defmodule Peep.Storage.ETS do
 
   @behaviour Peep.Storage
 
-  @spec new() :: :ets.tid()
+  @spec new(pos_integer) :: {:ets.tid(), pos_integer}
   @impl true
-  def new() do
+  def new(partitions) when is_integer(partitions) and partitions > 0 do
     opts = [
       :public,
       # Enabling read_concurrency makes switching between reads and writes
@@ -25,11 +25,11 @@ defmodule Peep.Storage.ETS do
       decentralized_counters: true
     ]
 
-    :ets.new(__MODULE__, opts)
+    {:ets.new(__MODULE__, opts), partitions}
   end
 
   @impl true
-  def storage_size(tid) do
+  def storage_size({tid, _}) do
     %{
       size: :ets.info(tid, :size),
       memory: :ets.info(tid, :memory) * :erlang.system_info(:wordsize)
@@ -37,22 +37,22 @@ defmodule Peep.Storage.ETS do
   end
 
   @impl true
-  def insert_metric(tid, id, %Metrics.Counter{}, _value, %{} = tags) do
-    key = {id, tags, :erlang.system_info(:scheduler_id)}
+  def insert_metric({tid, partitions}, id, %Metrics.Counter{}, _value, %{} = tags) do
+    key = {id, tags, :rand.uniform(partitions)}
     :ets.update_counter(tid, key, {2, 1}, {key, 0})
   end
 
-  def insert_metric(tid, id, %Metrics.Sum{}, value, %{} = tags) do
-    key = {id, tags, :erlang.system_info(:scheduler_id)}
+  def insert_metric({tid, partitions}, id, %Metrics.Sum{}, value, %{} = tags) do
+    key = {id, tags, :rand.uniform(partitions)}
     :ets.update_counter(tid, key, {2, value}, {key, 0})
   end
 
-  def insert_metric(tid, id, %Metrics.LastValue{}, value, %{} = tags) do
+  def insert_metric({tid, _partitions}, id, %Metrics.LastValue{}, value, %{} = tags) do
     key = {id, tags}
     :ets.insert(tid, {key, value})
   end
 
-  def insert_metric(tid, id, %Metrics.Distribution{} = metric, value, %{} = tags) do
+  def insert_metric({tid, _partitions}, id, %Metrics.Distribution{} = metric, value, %{} = tags) do
     key = {id, tags}
 
     atomics =
@@ -81,30 +81,30 @@ defmodule Peep.Storage.ETS do
   end
 
   @impl true
-  def get_all_metrics(tid, %Peep.Persistent{ids_to_metrics: itm}) do
+  def get_all_metrics({tid, _partitions}, %Peep.Persistent{ids_to_metrics: itm}) do
     :ets.tab2list(tid)
     |> group_metrics(itm, %{})
   end
 
   @impl true
-  def get_metric(tid, id, %Metrics.Counter{}, tags) do
+  def get_metric({tid, _partitions}, id, %Metrics.Counter{}, tags) do
     :ets.select(tid, [{{{id, :"$2", :_}, :"$1"}, [{:==, :"$2", tags}], [:"$1"]}])
     |> Enum.reduce(0, fn count, acc -> count + acc end)
   end
 
-  def get_metric(tid, id, %Metrics.Sum{}, tags) do
+  def get_metric({tid, _partitions}, id, %Metrics.Sum{}, tags) do
     :ets.select(tid, [{{{id, :"$2", :_}, :"$1"}, [{:==, :"$2", tags}], [:"$1"]}])
     |> Enum.reduce(0, fn count, acc -> count + acc end)
   end
 
-  def get_metric(tid, id, %Metrics.LastValue{}, tags) do
+  def get_metric({tid, _partitions}, id, %Metrics.LastValue{}, tags) do
     case :ets.lookup(tid, {id, tags}) do
       [{_key, value}] -> value
       _ -> nil
     end
   end
 
-  def get_metric(tid, id, %Metrics.Distribution{}, tags) do
+  def get_metric({tid, _partitions}, id, %Metrics.Distribution{}, tags) do
     key = {id, tags}
 
     case :ets.lookup(tid, key) do
@@ -114,7 +114,7 @@ defmodule Peep.Storage.ETS do
   end
 
   @impl true
-  def prune_tags(tid, patterns) do
+  def prune_tags({tid, _partitions}, patterns) do
     match_spec =
       patterns
       |> Enum.flat_map(fn pattern ->

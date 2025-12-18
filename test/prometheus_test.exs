@@ -11,10 +11,10 @@ defmodule PrometheusTest do
     defstruct [:reason, :code]
   end
 
-  @impls [:default, :striped]
+  @impls [:default, {:default, 1}, {:default, 4}, {:default, 20}, :striped]
 
   for impl <- @impls do
-    test "#{impl} - counter formatting" do
+    test "#{inspect(impl)} - counter formatting" do
       counter = Metrics.counter("prometheus.test.counter", description: "a counter")
       name = StorageCounter.fresh_id()
 
@@ -37,7 +37,7 @@ defmodule PrometheusTest do
       assert export(name) == lines_to_string(expected)
     end
 
-    describe "#{impl} - sum" do
+    describe "#{inspect(impl)} - sum" do
       test "sum formatting" do
         name = StorageCounter.fresh_id()
         sum = Metrics.sum("prometheus.test.sum", description: "a sum")
@@ -92,7 +92,7 @@ defmodule PrometheusTest do
       end
     end
 
-    describe "#{impl} - last_value" do
+    describe "#{inspect(impl)} - last_value" do
       test "formatting" do
         name = StorageCounter.fresh_id()
         last_value = Metrics.last_value("prometheus.test.gauge", description: "a last_value")
@@ -145,7 +145,7 @@ defmodule PrometheusTest do
       end
     end
 
-    test "#{impl} - dist formatting" do
+    test "#{inspect(impl)} - dist formatting" do
       name = StorageCounter.fresh_id()
 
       dist =
@@ -264,7 +264,7 @@ defmodule PrometheusTest do
       assert export(name) == lines_to_string(expected)
     end
 
-    test "#{impl} - dist formatting pow10" do
+    test "#{inspect(impl)} - dist formatting pow10" do
       name = StorageCounter.fresh_id()
 
       dist =
@@ -337,7 +337,7 @@ defmodule PrometheusTest do
       assert export(name) == lines_to_string(expected)
     end
 
-    test "#{impl} - regression: label escaping" do
+    test "#{inspect(impl)} - regression: label escaping" do
       name = StorageCounter.fresh_id()
 
       counter =
@@ -371,7 +371,7 @@ defmodule PrometheusTest do
       assert export(name) == lines_to_string(expected)
     end
 
-    test "#{impl} - regression: handle structs without String.Chars" do
+    test "#{inspect(impl)} - regression: handle structs without String.Chars" do
       name = StorageCounter.fresh_id()
 
       counter =

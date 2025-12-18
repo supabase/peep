@@ -61,11 +61,17 @@ defmodule Peep.Options do
           "Global tags are overridden by the tags specified in the metric definition."
     ],
     storage: [
-      type: {:in, [:default, :striped]},
+      type:
+        {:or,
+         [
+           {:in, [:default, :striped]},
+           {:tuple, [{:in, [:default]}, :pos_integer]}
+         ]},
       default: :default,
       doc:
         "Which storage implementation to use. " <>
           "`:default` uses a single ETS table, with some optimizations for concurrent writing. " <>
+          "`{:default, n}` uses a single ETS table with a specified concurrency level. " <>
           "`:striped` uses one ETS table per scheduler thread, " <>
           "which trades memory for less lock contention for concurrent writes."
     ]
