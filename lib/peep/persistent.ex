@@ -6,7 +6,8 @@ defmodule Peep.Persistent do
 
   @type name() :: atom()
 
-  @typep storage_default() :: {Peep.Storage.ETS, :ets.tid()}
+  @typep storage_default() ::
+           {Peep.Storage.ETS, :ets.tid()} | {Peep.Storage.ETS, {:ets.tid(), pos_integer}}
   @typep storage_striped() :: {Peep.Storage.Striped, tuple()}
   @typep storage() :: storage_default() | storage_striped()
   @typep events_to_metrics() :: %{
